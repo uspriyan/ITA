@@ -12,13 +12,34 @@
 #include <vector>
 #include <algorithm>
 #include <cctype>
+#include <stdexcept>
 
 namespace fs = std::filesystem;
+// command to execute the program
+// g++ main.cpp src/models/PortalItem.cpp src/models/Resource.cpp src/models/Event.cpp src/models/PlacementResource.cpp src/models/PlacementReport.cpp src/models/PlacementReportManager.cpp src/models/Student.cpp src/models/StudentManager.cpp -std=c++17 -Iinclude -lws2_32 -lmswsock -o portal.exe
 
+/* ============================================================
+   TEMPLATE DECLARATION
+   ============================================================ */
+// I used templates here
+template <typename Container>
+void validate_file_extension(const std::string& extension, const Container& valid_extensions) {
+    auto it = std::find(valid_extensions.begin(), valid_extensions.end(), extension);
+    if (it == valid_extensions.end()) {
+        throw std::runtime_error("The file belongs to unreadable format!!");
+    }
+}
 
 /* ============================================================
    MIME TYPE
    ============================================================ */
+// A perfect inline function: short, fast, and heavily repeated
+inline std::string to_lowercase(std::string str) {
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { 
+        return std::tolower(c); 
+    });
+    return str;
+}
 
 std::string get_mime_type(const std::string& extension)
 {
@@ -57,7 +78,7 @@ crow::response serve_public_file(
 {
     std::string full_path =
         "public/" + relative_path;
-
+// i can use try and catch block here
     if (!fs::exists(full_path) ||
         !fs::is_regular_file(full_path))
     {
@@ -68,7 +89,7 @@ crow::response serve_public_file(
         full_path,
         std::ios::binary
     );
-
+//i could use try& catch block
     if (!file)
     {
         return crow::response(500);
@@ -110,17 +131,30 @@ crow::json::wvalue scan_resources_directory()
 
     std::string resources_directory =
         "public/resources";
-
-    if (!fs::exists(resources_directory))
-    {
+//I'm gonna use try and catch block here
+//To check the existence of resources
+    try{
+        if (!fs::exists(resources_directory))
+        {
+            throw std::runtime_error("The resources directory is not available!!!");
+        }
+    }
+    catch(std::runtime_error e){
+        std::cout<<"Error :"<<e.what()<<std::endl;
         return categories;
     }
-
     for (const auto& category_entry :
          fs::directory_iterator(resources_directory))
     {
+        // I used try here
+        try{
         if (!category_entry.is_directory())
         {
+            throw std::runtime_error("Subfolder is not present");
+        }
+    }
+        catch(std::runtime_error e){
+            std::cout<<"Error :"<<e.what()<<std::endl;
             continue;
         }
 
@@ -139,35 +173,34 @@ crow::json::wvalue scan_resources_directory()
                  category_entry.path()
              ))
         {
+            //I used try block here
+        try{
             if (!file_entry.is_regular_file())
-            {
-                continue;
-            }
+                {
+                    throw std::runtime_error("File has irregular format ");
+                }
+        }
+        catch(std::runtime_error e){
 
+            std::cout<<"Error :"<<e.what()<<std::endl;
+            continue;
+
+        }
             std::string extension =
                 file_entry.path()
                     .extension()
                     .string();
-
-            std::transform(
-                extension.begin(),
-                extension.end(),
-                extension.begin(),
-                [](unsigned char c)
-                {
-                    return std::tolower(c);
-                }
-            );
-
-            if (
-                extension != ".pdf" &&
-                extension != ".jpg" &&
-                extension != ".jpeg" &&
-                extension != ".png"
-            )
-            {
-                continue;
-            }
+        extension = to_lowercase(extension);
+            
+            try{
+                // I used templates here
+                std::vector<std::string> allowed_extensions = { ".pdf", ".jpg", ".jpeg", ".png" };
+                validate_file_extension(extension, allowed_extensions);
+        }
+        catch(std::runtime_error e){
+            std::cout<<"Error :"<<e.what()<<std::endl;
+            continue;
+        }
 
             crow::json::wvalue file;
 
@@ -213,17 +246,32 @@ scan_placement_resources_directory()
     std::string directory =
         "public/placement-resources";
 
-    if (!fs::exists(directory))
-    {
+    
+    try{
+        if (!fs::exists(directory))
+        {
+            throw std::runtime_error("The resources directory is not available!!!");
+        }
+    }
+    catch(std::runtime_error e){
+        std::cout<<"Error :"<<e.what()<<std::endl;
         return resources;
     }
-
     for (const auto& file_entry :
          fs::directory_iterator(directory))
     {
-        if (!file_entry.is_regular_file())
-        {
+        //I have used the try and catch block here.
+        try{
+            if (!file_entry.is_regular_file())
+                {
+                    throw std::runtime_error("File has irregular format ");
+                }
+        }
+        catch(std::runtime_error e){
+
+            std::cout<<"Error :"<<e.what()<<std::endl;
             continue;
+
         }
 
         std::string extension =
@@ -231,20 +279,18 @@ scan_placement_resources_directory()
                 .extension()
                 .string();
 
-        std::transform(
-            extension.begin(),
-            extension.end(),
-            extension.begin(),
-            [](unsigned char c)
-            {
-                return std::tolower(c);
-            }
-        );
-
-        if (extension != ".pdf")
-        {
+        extension = to_lowercase(extension);
+        //I have used the try and catch block here
+        try{
+                // I used templates here
+                std::vector<std::string> allowed_extensions = { ".pdf" };
+                validate_file_extension(extension, allowed_extensions);
+        }
+        catch(std::runtime_error e){
+            std::cout<<"\nError : "<<e.what()<<std::endl;
             continue;
         }
+        
 
         std::string filename =
             file_entry.path()
@@ -295,20 +341,33 @@ scan_events_directory()
     std::string directory =
         "public/events";
 
-    if (!fs::exists(directory))
-    {
+    try{
+        if (!fs::exists(directory))
+        {
+            throw std::runtime_error("The resources directory is not available!!!");
+        }
+    }
+    catch(std::runtime_error e){
+        std::cout<<"Error :"<<e.what()<<std::endl;
         return events;
     }
-
 
     for (const auto& file_entry :
          fs::directory_iterator(directory))
     {
-        if (!file_entry.is_regular_file())
-        {
-            continue;
+        
+        try{
+            if (!file_entry.is_regular_file())
+                {
+                    throw std::runtime_error("File has irregular format ");
+                }
         }
+        catch(std::runtime_error e){
 
+            std::cout<<"Error :"<<e.what()<<std::endl;
+            continue;
+
+        }
 
         std::string extension =
             file_entry.path()
@@ -316,15 +375,7 @@ scan_events_directory()
                 .string();
 
 
-        std::transform(
-            extension.begin(),
-            extension.end(),
-            extension.begin(),
-            [](unsigned char c)
-            {
-                return std::tolower(c);
-            }
-        );
+        extension = to_lowercase(extension);
 
 
         /*
@@ -332,13 +383,15 @@ scan_events_directory()
          * event posters.
          */
 
-        if (
-            extension != ".jpeg" &&
-            extension != ".jpg"
-        )
-        {
-            continue;
-        }
+        try {
+            // I used templates here
+            std::vector<std::string> allowed_extensions = { ".jpeg", ".jpg" };
+            validate_file_extension(extension, allowed_extensions);
+    }
+    catch(std::runtime_error e){
+        std::cout<<"\nError : "<<e.what()<<std::endl;
+        continue;
+    }
 
 
         std::string filename =
